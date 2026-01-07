@@ -1,4 +1,9 @@
-import http from "http";
+import { createServer } from "http"; // 'node:' prefix was added in Node.js 16
+import type {
+  Server as HTTPServer,
+  IncomingMessage,
+  ServerResponse,
+} from "http";
 import type { Server as HTTPSServer } from "https";
 import type { Http2SecureServer, Http2Server } from "http2";
 import { createReadStream } from "fs";
@@ -58,7 +63,7 @@ type ParentNspNameMatchFn = (
 type AdapterConstructor = typeof Adapter | ((nsp: Namespace) => Adapter);
 
 type TServerInstance =
-  | http.Server
+  | HTTPServer
   | HTTPSServer
   | Http2SecureServer
   | Http2Server;
@@ -276,8 +281,8 @@ export class Server<
    */
   _connectTimeout: number;
   private _corsMiddleware: (
-    req: http.IncomingMessage,
-    res: http.ServerResponse,
+    req: IncomingMessage,
+    res: ServerResponse,
     next: () => void,
   ) => void;
 
@@ -301,7 +306,7 @@ export class Server<
     if (
       "object" === typeof srv &&
       srv instanceof Object &&
-      !(srv as Partial<http.Server>).listen
+      !(srv as Partial<HTTPServer>).listen
     ) {
       opts = srv as Partial<ServerOptions>;
       srv = undefined;
@@ -493,7 +498,7 @@ export class Server<
     if ("number" == typeof srv) {
       debug("creating http server and binding to %d", srv);
       const port = srv;
-      srv = http.createServer((req, res) => {
+      srv = createServer((_req, res) => {
         res.writeHead(404);
         res.end();
       });
@@ -591,7 +596,7 @@ export class Server<
   ): void {
     // initialize engine
     debug("creating engine.io instance with opts %j", opts);
-    this.eio = attach(srv as http.Server, opts);
+    this.eio = attach(srv as HTTPServer, opts);
 
     // attach static file serving
     if (this._serveClient) this.attachServe(srv);
@@ -638,7 +643,7 @@ export class Server<
    * @param res
    * @private
    */
-  private serve(req: http.IncomingMessage, res: http.ServerResponse): void {
+  private serve(req: IncomingMessage, res: ServerResponse): void {
     const filename = req.url!.replace(this._path, "").replace(/\?.*$/, "");
     const isMap = dotMapRegex.test(filename);
     const type = isMap ? "map" : "source";
@@ -678,8 +683,8 @@ export class Server<
    */
   private static sendFile(
     filename: string,
-    req: http.IncomingMessage,
-    res: http.ServerResponse,
+    req: IncomingMessage,
+    res: ServerResponse,
   ): void {
     const readStream = createReadStream(
       path.join(__dirname, "../client-dist/", filename),
